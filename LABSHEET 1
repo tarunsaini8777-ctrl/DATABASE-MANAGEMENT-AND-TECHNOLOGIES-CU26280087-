@@ -1,0 +1,254 @@
+-- Q1. Create a students table
+CREATE TABLE students (
+    student_id INT,
+    student_name VARCHAR(50),
+    age INT
+);
+
+-- Q2. Create a departments table
+CREATE TABLE departments (
+    dept_id INT,
+    dept_name VARCHAR(50)
+);
+
+-- Q3. Create an employees table
+CREATE TABLE employees (
+    emp_id INT,
+    emp_name VARCHAR(50),
+    salary DECIMAL(10,2)
+);
+
+-- Q4. Create a courses table
+CREATE TABLE courses (
+    course_id INT,
+    course_name VARCHAR(100)
+);
+
+-- Q5. Create a teachers table
+CREATE TABLE teachers (
+    teacher_id INT,
+    teacher_name VARCHAR(50)
+);
+
+-- Q6. Add a primary key to students
+ALTER TABLE students
+ADD PRIMARY KEY (student_id);
+
+-- Q7. Add an email column to students
+ALTER TABLE students
+ADD email VARCHAR(100);
+
+-- Q8. Add a phone column to students
+ALTER TABLE students
+ADD phone VARCHAR(15);
+
+-- Q9. Modify student_name column
+ALTER TABLE students
+MODIFY student_name VARCHAR(100);
+
+-- Q10. Rename a column in students
+ALTER TABLE students
+RENAME COLUMN phone TO mobile;
+
+-- Q11. Add a date_of_birth column
+ALTER TABLE students
+ADD date_of_birth DATE;
+
+-- Q12. Add a department ID to employees
+ALTER TABLE employees
+ADD dept_id INT;
+
+-- Q13. Modify salary column
+ALTER TABLE employees
+MODIFY salary DECIMAL(12,2);
+
+-- Q14. Add a primary key to departments
+ALTER TABLE departments
+ADD PRIMARY KEY (dept_id);
+
+-- Q15. Add a description column to courses
+ALTER TABLE courses
+ADD description TEXT;
+
+-- Q16. Create a table with a composite primary key
+CREATE TABLE student_courses (
+    student_id INT,
+    course_id INT,
+    PRIMARY KEY (student_id, course_id)
+);
+
+-- Q17. Create a table with an auto-increment ID
+CREATE TABLE books (
+    book_id INT AUTO_INCREMENT PRIMARY KEY,
+    book_name VARCHAR(100)
+);
+
+-- Q18. Create a clients table
+CREATE TABLE clients (
+    client_id INT,
+    client_name VARCHAR(100),
+    city VARCHAR(50),
+    PRIMARY KEY (client_id)
+);
+
+-- Q19. Create a products table
+CREATE TABLE products (
+    product_id INT PRIMARY KEY,
+    product_name VARCHAR(100),
+    price DECIMAL(10,2)
+);
+
+-- Q20. Add a primary key to clients
+-- Q18 already created this primary key.
+-- Run this only if the primary key has been removed:
+-- ALTER TABLE clients ADD PRIMARY KEY (client_id);
+
+-- Q21. Create a table with a unique email
+CREATE TABLE users (
+    user_id INT PRIMARY KEY,
+    username VARCHAR(50),
+    email VARCHAR(100) UNIQUE
+);
+
+-- Q22. Create a table with a NOT NULL constraint
+CREATE TABLE subjects (
+    subject_id INT PRIMARY KEY,
+    subject_name VARCHAR(100) NOT NULL
+);
+
+-- Q23. Add a column to departments
+ALTER TABLE departments
+ADD location VARCHAR(100);
+
+-- Q24. Modify department name length
+ALTER TABLE departments
+MODIFY dept_name VARCHAR(100);
+
+-- Q25. Rename a table
+RENAME TABLE teachers TO faculty;
+
+-- Q26. Create an attendance table
+CREATE TABLE attendance (
+    attendance_id INT PRIMARY KEY,
+    student_id INT,
+    attendance_date DATE,
+    status VARCHAR(10)
+);
+
+-- Q27. Add a column to attendance
+ALTER TABLE attendance
+ADD remarks VARCHAR(255);
+
+-- Q28. Create an exam table
+CREATE TABLE exams (
+    exam_id INT PRIMARY KEY,
+    exam_name VARCHAR(100),
+    exam_date DATE
+);
+
+-- Q29. Add marks column to exams
+ALTER TABLE exams
+ADD marks INT;
+
+-- Q30. Create a results table
+CREATE TABLE results (
+    result_id INT PRIMARY KEY,
+    student_id INT,
+    subject_id INT,
+    marks INT
+);
+
+-- Q31. Add a column to results
+ALTER TABLE results
+ADD grade VARCHAR(5);
+
+-- Q32. Create a library table
+CREATE TABLE library (
+    library_id INT PRIMARY KEY,
+    book_title VARCHAR(100),
+    author VARCHAR(100)
+);
+
+-- Q33. Add a publisher column
+ALTER TABLE library
+ADD publisher VARCHAR(100);
+
+-- Q34. Create a fees table
+CREATE TABLE fees (
+    fee_id INT PRIMARY KEY,
+    student_id INT,
+    amount DECIMAL(10,2)
+);
+
+-- Q35. Modify the amount column
+ALTER TABLE fees
+MODIFY amount DECIMAL(12,2);
+
+-- Q36. Create a hostel table
+CREATE TABLE hostel (
+    hostel_id INT PRIMARY KEY,
+    hostel_name VARCHAR(100)
+);
+
+-- Q37. Add a room number column
+ALTER TABLE hostel
+ADD room_number INT;
+
+-- Q38. Create a transport table
+CREATE TABLE transport (
+    transport_id INT PRIMARY KEY,
+    vehicle_number VARCHAR(20),
+    route VARCHAR(100)
+);
+
+-- Q39. Add a driver name column
+ALTER TABLE transport
+ADD driver_name VARCHAR(100);
+
+-- Q40. Create a timetable table
+CREATE TABLE timetable (
+    timetable_id INT PRIMARY KEY,
+    subject_name VARCHAR(100),
+    class_time TIME
+);
+
+-- Q41. Add a classroom column
+ALTER TABLE timetable
+ADD classroom VARCHAR(50);
+
+-- Q42. Create a department backup table
+CREATE TABLE departments_backup (
+    dept_id INT,
+    dept_name VARCHAR(100),
+    location VARCHAR(100)
+);
+
+-- Q43. Drop the primary key from clients
+-- Run only if you need to remove the key:
+-- ALTER TABLE clients DROP PRIMARY KEY;
+
+-- Q44. Remove a column from students
+ALTER TABLE students
+DROP COLUMN date_of_birth;
+
+-- Q45. Remove a column from courses
+ALTER TABLE courses
+DROP COLUMN description;
+
+-- Q46. Rename products table
+RENAME TABLE products TO product_details;
+
+-- Q47. Empty the attendance table
+TRUNCATE TABLE attendance;
+
+-- Q48. Delete the hostel table structure
+DROP TABLE hostel;
+
+-- Q49. Delete the transport table structure
+DROP TABLE transport;
+
+-- Q50. Delete the timetable table structure
+DROP TABLE timetable;
+
+-- Display remaining tables
+SHOW TABLES;

@@ -1,0 +1,392 @@
+-- Solution 1
+-- Primary key of Department is DeptID. It uniquely identifies each
+-- department and cannot be NULL because it is a primary key.
+
+-- Solution 2: Department table + data
+CREATE TABLE Department (
+    DeptID   INT PRIMARY KEY,
+    DeptName VARCHAR(50) NOT NULL
+);
+
+INSERT INTO Department VALUES
+(10,'Computer Science'),
+(20,'Information Technology'),
+(30,'Pharmacy'),
+(40,'Management');
+
+-- Solution 3: Student table + data
+CREATE TABLE Student (
+    StudentID   INT PRIMARY KEY,
+    Name        VARCHAR(100) NOT NULL,
+    Email       VARCHAR(100),
+    Age         INT,
+    DeptID      INT,
+    JoiningDate DATE
+);
+
+INSERT INTO Student VALUES
+(101,'Amit Sharma','amit@example.com',20,10,'2026-07-01'),
+(102,'Priya Singh','priya@example.com',21,20,'2026-07-03'),
+(103,'Rahul Verma','rahul@example.com',22,30,'2026-07-05'),
+(104,'Neha Gupta','neha@example.com',20,10,'2026-07-08'),
+(105,'Arjun Mehta','arjun@example.com',23,40,'2026-07-10');
+
+-- Solution 4: duplicate StudentID
+-- EXPECTED ERROR: Duplicate entry '101' for key 'student.PRIMARY'
+-- INSERT INTO Student VALUES (101,'Karan Shah','karan@example.com',21,20,'2026-08-01');
+
+-- Solution 5: Enrollment table + data
+CREATE TABLE Enrollment (
+    EnrollmentID INT PRIMARY KEY,
+    StudentID    INT,
+    CourseName   VARCHAR(100)
+);
+
+INSERT INTO Enrollment VALUES
+(1,101,'DBMS'),
+(2,102,'Operating Systems'),
+(3,103,'Pharmacology'),
+(4,104,'Python');
+
+-- Solution 6: duplicate EnrollmentID
+-- EXPECTED ERROR: Duplicate entry '1' for key 'enrollment.PRIMARY'
+-- INSERT INTO Enrollment VALUES (1,105,'Data Mining');
+
+-- Solution 7: FK Student(DeptID) -> Department(DeptID)
+ALTER TABLE Student
+ADD CONSTRAINT fk_student_department
+FOREIGN KEY (DeptID) REFERENCES Department(DeptID);
+
+-- Solution 8: FK Enrollment(StudentID) -> Student(StudentID)
+ALTER TABLE Enrollment
+ADD CONSTRAINT fk_enrollment_student
+FOREIGN KEY (StudentID) REFERENCES Student(StudentID);
+
+-- Solution 9: DeptID 99 does not exist in Department
+-- EXPECTED ERROR: Cannot add or update a child row: a foreign key constraint fails
+-- INSERT INTO Student VALUES (106,'Riya Das','riya@example.com',21,99,'2026-08-01');
+
+-- Solution 10: StudentID 999 does not exist in Student
+-- EXPECTED ERROR: Cannot add or update a child row: a foreign key constraint fails
+-- INSERT INTO Enrollment VALUES (5,999,'DBMS');
+
+-- Solution 11: students with department names
+SELECT s.StudentID, s.Name, d.DeptName
+FROM Student s
+INNER JOIN Department d ON s.DeptID = d.DeptID;
+
+-- Solution 12: enrollment details with student name
+SELECT e.EnrollmentID, s.Name, e.CourseName
+FROM Enrollment e
+INNER JOIN Student s ON e.StudentID = s.StudentID;
+
+
+-- =====================================================================
+-- PART C : OTHER INTEGRITY CONSTRAINTS   (Q13 - Q20)
+-- =====================================================================
+
+-- Solution 13: NOT NULL
+CREATE TABLE Department2 (
+    DeptID   INT PRIMARY KEY,
+    DeptName VARCHAR(50) NOT NULL
+);
+-- EXPECTED ERROR: Column 'DeptName' cannot be null
+-- INSERT INTO Department2 VALUES (50, NULL);
+
+-- Solution 14: Student without Name
+-- EXPECTED ERROR: Field 'Name' doesn't have a default value
+--                 (or "Column 'Name' cannot be null", depending on SQL mode)
+-- INSERT INTO Student (StudentID, Email, Age, DeptID)
+-- VALUES (106,'riya@example.com',21,20);
+
+-- Solution 15: UNIQUE on Email
+ALTER TABLE Student
+ADD CONSTRAINT uq_student_email UNIQUE (Email);
+-- EXPECTED ERROR: Duplicate entry 'amit@example.com' for key 'student.uq_student_email'
+-- INSERT INTO Student
+-- VALUES (106,'Riya Das','amit@example.com',21,20,'2026-08-01');
+
+-- Solution 16: Library table with UNIQUE BookID
+CREATE TABLE Library (
+    BookID INT UNIQUE,
+    Title  VARCHAR(150) NOT NULL
+);
+
+INSERT INTO Library VALUES
+(1,'Database Systems'),
+(2,'Operating Systems'),
+(3,'Computer Networks'),
+(4,'Python Programming'),
+(5,'Data Mining');
+
+-- Solution 17: CHECK Age > 18
+ALTER TABLE Student
+ADD CONSTRAINT chk_student_age CHECK (Age > 18);
+-- EXPECTED ERROR: Check constraint 'chk_student_age' is violated
+-- INSERT INTO Student
+-- VALUES (106,'Riya Das','riya@example.com',17,20,'2026-08-01');
+
+-- Solution 18: CHECK Credits between 1 and 6
+CREATE TABLE Course (
+    CourseID   INT PRIMARY KEY,
+    CourseName VARCHAR(100),
+    Credits    INT CHECK (Credits BETWEEN 1 AND 6)
+);
+-- EXPECTED ERROR: Check constraint 'course_chk_1' is violated
+-- INSERT INTO Course VALUES (1,'DBMS',8);
+
+-- Solution 19: DEFAULT current date
+-- (JoiningDate already exists in Student, so a new column JoiningDate2 is added)
+ALTER TABLE Student
+ADD COLUMN JoiningDate2 DATE DEFAULT (CURRENT_DATE);
+
+INSERT INTO Student (StudentID, Name, Email, Age, DeptID)
+VALUES (106,'Riya Das','riya@example.com',21,20);
+
+SELECT * FROM Student;
+
+-- Solution 20: DEFAULT Designation = 'Lecturer'
+CREATE TABLE Faculty (
+    FacultyID   INT PRIMARY KEY,
+    FacultyName VARCHAR(100) NOT NULL,
+    Designation VARCHAR(50) DEFAULT 'Lecturer'
+);
+
+INSERT INTO Faculty (FacultyID, FacultyName)
+VALUES (1,'Dr. Meera Sharma');
+
+SELECT * FROM Faculty;
+
+
+-- =====================================================================
+-- PART D : DML LAB EXERCISES
+-- =====================================================================
+
+-- ---------------------------------------------------------------------
+-- Exercise 1 : Basic INSERT Operations   (Q21 - Q25)
+-- ---------------------------------------------------------------------
+
+-- Solution 21
+CREATE TABLE employees (
+    emp_id     INT PRIMARY KEY,
+    name       VARCHAR(80),
+    department VARCHAR(50),
+    salary     DECIMAL(10,2),
+    hire_date  DATE
+);
+
+-- Solution 22: single row, all columns
+INSERT INTO employees VALUES (101,'John Smith','IT',55000,'2024-01-15');
+
+-- Solution 23: multiple rows
+INSERT INTO employees VALUES
+(102,'Sarah Johnson','HR',48000,'2024-02-10'),
+(103,'Mike Davis','Finance',52000,'2024-01-20'),
+(104,'Lisa Wilson','Marketing',45000,'2024-03-01');
+
+-- Solution 24: selected columns only (salary, hire_date stay NULL)
+INSERT INTO employees (emp_id, name, department)
+VALUES (107,'David Clark','Sales');
+
+-- Solution 25
+SELECT * FROM employees;
+
+-- ---------------------------------------------------------------------
+-- Exercise 2 : Basic SELECT Operations   (Q26 - Q33)
+-- ---------------------------------------------------------------------
+
+-- Solution 26
+SELECT * FROM employees;
+
+-- Solution 27
+SELECT name, salary FROM employees;
+
+-- Solution 28
+SELECT * FROM employees WHERE department = 'IT';
+
+-- Solution 29
+SELECT * FROM employees WHERE salary > 50000;
+
+-- Solution 30
+SELECT * FROM employees
+WHERE hire_date BETWEEN '2024-01-01' AND '2024-01-31';
+
+-- Solution 31
+SELECT DISTINCT department FROM employees;
+
+-- Solution 32
+SELECT COUNT(*) AS total_employees FROM employees;
+
+-- Solution 33
+SELECT MAX(salary) AS maximum_salary,
+       MIN(salary) AS minimum_salary,
+       AVG(salary) AS average_salary
+FROM employees;
+
+-- ---------------------------------------------------------------------
+-- Exercise 3 : UPDATE Operations   (Q34 - Q39)
+-- ---------------------------------------------------------------------
+
+-- Solution 34
+UPDATE employees SET salary = 58000 WHERE name = 'John Smith';
+
+-- Solution 35
+UPDATE employees SET salary = salary * 1.05 WHERE department = 'HR';
+
+-- Solution 36
+UPDATE employees
+SET salary = 47000, hire_date = '2024-03-05'
+WHERE name = 'Lisa Wilson';
+
+-- Solution 37
+UPDATE employees SET department = 'Operations' WHERE salary < 50000;
+
+-- Solution 38
+UPDATE employees SET salary = salary + 2000 WHERE department = 'Finance';
+
+-- Solution 39
+UPDATE employees SET department = 'Senior Staff'
+WHERE hire_date < '2024-02-01';
+
+SELECT * FROM employees;
+
+-- ---------------------------------------------------------------------
+-- Exercise 4 : DELETE Operations   (Q40 - Q43)
+-- ---------------------------------------------------------------------
+
+CREATE TABLE products (
+    product_id     INT PRIMARY KEY,
+    product_name   VARCHAR(100),
+    category       VARCHAR(50),
+    price          DECIMAL(10,2),
+    stock_quantity INT
+);
+
+INSERT INTO products VALUES
+(1,'Laptop','Electronics',999.99,5),
+(2,'Mouse','Electronics',25.50,0),
+(3,'Desk Chair','Furniture',150.00,3),
+(4,'Monitor','Electronics',1200.00,2),
+(5,'Keyboard','Electronics',75.00,0),
+(6,'Coffee Mug','Office',12.99,10),
+(7,'Notebook','Office',5.99,8),
+(8,'Smartphone','Electronics',1500.00,1);
+
+-- Solution 40: zero stock
+DELETE FROM products WHERE stock_quantity = 0;
+
+-- Solution 41: Electronics priced over 1000
+DELETE FROM products WHERE category = 'Electronics' AND price > 1000;
+
+-- Solution 42: Desk Chair
+DELETE FROM products WHERE product_name = 'Desk Chair';
+
+-- Solution 43: price under 100
+DELETE FROM products WHERE price < 100;
+
+SELECT * FROM products;
+
+-- ---------------------------------------------------------------------
+-- Exercise 5 : SELECT with ORDER BY, LIKE, LIMIT   (Q44 - Q50)
+-- ---------------------------------------------------------------------
+
+CREATE TABLE students (
+    student_id   INT PRIMARY KEY,
+    student_name VARCHAR(100),
+    course       VARCHAR(50),
+    marks        INT,
+    city         VARCHAR(50)
+);
+
+INSERT INTO students VALUES
+(1,'Alice Brown','Computer Science',85,'Mumbai'),
+(2,'Bob Wilson','Mathematics',92,'Delhi'),
+(3,'Carol Davis','Computer Science',78,'Mumbai'),
+(4,'David Miller','Physics',88,'Chennai'),
+(5,'Eva Garcia','Mathematics',95,'Delhi'),
+(6,'Frank Johnson','Computer Science',82,'Bangalore'),
+(7,'Grace Lee','Physics',90,'Mumbai'),
+(8,'Henry Smith','Mathematics',76,'Chennai'),
+(9,'Ivy Chen','Computer Science',89,'Delhi'),
+(10,'Jack Taylor','Physics',84,'Bangalore');
+
+-- Solution 44
+SELECT * FROM students ORDER BY marks DESC;
+
+-- Solution 45
+SELECT * FROM students ORDER BY marks DESC LIMIT 5;
+
+-- Solution 46
+SELECT * FROM students
+WHERE course = 'Computer Science'
+ORDER BY student_name ASC;
+
+-- Solution 47
+SELECT * FROM students ORDER BY marks ASC LIMIT 3;
+
+-- Solution 48
+SELECT * FROM students WHERE marks BETWEEN 80 AND 90;
+
+-- Solution 49
+SELECT * FROM students WHERE student_name LIKE 'A%';
+
+-- Solution 50
+SELECT * FROM students WHERE city IN ('Mumbai','Delhi');
+
+
+-- =====================================================================
+-- PART E : LIBRARY DATABASE - DDL PRACTICE   (Q51 - Q55)
+-- =====================================================================
+
+-- Solution 51
+CREATE TABLE Books (
+    book_id INT PRIMARY KEY,
+    title   VARCHAR(255) NOT NULL,
+    author  VARCHAR(255),
+    isbn    VARCHAR(13) UNIQUE,
+    genre   VARCHAR(50)
+);
+
+-- Solution 52
+CREATE TABLE Members (
+    member_id    INT PRIMARY KEY,
+    name         VARCHAR(255) NOT NULL,
+    email        VARCHAR(255) UNIQUE,
+    phone_number VARCHAR(20)
+);
+
+-- Solution 53
+CREATE TABLE Loans (
+    loan_id     INT PRIMARY KEY,
+    book_id     INT,
+    member_id   INT,
+    loan_date   DATE,
+    return_date DATE NULL,
+    FOREIGN KEY (book_id)   REFERENCES Books(book_id),
+    FOREIGN KEY (member_id) REFERENCES Members(member_id)
+);
+
+-- Solution 54
+INSERT INTO Books VALUES
+(1,'Database System Concepts','Korth','9780073523323','Database'),
+(2,'Operating System Concepts','Silberschatz','9781119456339','OS'),
+(3,'Python Crash Course','Eric Matthes','9781718502703','Programming');
+
+INSERT INTO Members VALUES
+(101,'Amit Sharma','amit.lib@example.com','9876500001'),
+(102,'Priya Singh','priya.lib@example.com','9876500002'),
+(103,'Rahul Verma','rahul.lib@example.com','9876500003');
+
+INSERT INTO Loans VALUES
+(1,1,101,'2026-09-01',NULL),
+(2,2,102,'2026-09-02','2026-09-06'),
+(3,3,103,'2026-09-04',NULL);
+
+-- Solution 55
+SELECT l.loan_id, b.title, m.name, l.loan_date, l.return_date
+FROM Loans l
+INNER JOIN Books   b ON l.book_id   = b.book_id
+INNER JOIN Members m ON l.member_id = m.member_id;
+
+-- ======================== END OF LAB SHEET 4 =========================
+

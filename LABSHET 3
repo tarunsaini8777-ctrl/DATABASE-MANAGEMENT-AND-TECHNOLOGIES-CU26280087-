@@ -1,0 +1,288 @@
+-- Q01. Grant SELECT permission to john
+GRANT SELECT ON company_db.* TO 'john'@'localhost';
+
+-- Q02. Grant SELECT and INSERT to alice
+GRANT SELECT, INSERT ON company_db.employees
+TO 'alice'@'localhost';
+
+-- Q03. Revoke INSERT from alice
+REVOKE INSERT ON company_db.employees
+FROM 'alice'@'localhost';
+
+-- Q04. Start transaction
+START TRANSACTION;
+
+-- Q05. Permanently save changes
+COMMIT;
+
+-- Q06. Undo uncommitted DELETE
+ROLLBACK;
+
+-- Q07. Create savepoint
+SAVEPOINT sp_before_update;
+
+-- Q08. Grant global privileges to admin_user
+GRANT ALL PRIVILEGES ON *.*
+TO 'admin_user'@'%';
+
+-- Q09. Refresh privilege tables
+FLUSH PRIVILEGES;
+
+-- Q10. Revoke all privileges and grant options
+REVOKE ALL PRIVILEGES, GRANT OPTION
+ON company_db.*
+FROM 'intern_user'@'localhost';
+-- Q11. Grant DELETE permission on orders
+GRANT DELETE ON company_db.orders
+TO 'dev_user'@'localhost';
+
+-- Q12. Transaction with savepoint
+START TRANSACTION;
+
+UPDATE employees
+SET salary = 80000.00
+WHERE emp_id = 101;
+
+SAVEPOINT sp_first;
+
+UPDATE employees
+SET salary = 95000.00
+WHERE emp_id = 102;
+
+ROLLBACK TO SAVEPOINT sp_first;
+
+COMMIT;
+
+-- Q13. Revoke UPDATE from hr_assistant
+REVOKE UPDATE ON company_db.employees
+FROM 'hr_assistant'@'localhost';
+
+-- Q14. Start a read-only transaction
+START TRANSACTION READ ONLY;
+
+SELECT * FROM company_db.employees;
+
+COMMIT;
+
+-- Q15. Demonstrate implicit commit caused by DDL
+START TRANSACTION;
+
+UPDATE employees
+SET salary = 85000.00
+WHERE emp_id = 101;
+
+-- Requires ALTER permission; execute as an authorized admin
+ALTER TABLE employees ADD COLUMN demo_col INT;
+
+-- This cannot undo the UPDATE committed by the DDL implicit commit
+ROLLBACK;
+
+-- Q16. Transfer $10,000 from Department 10 to 20
+START TRANSACTION;
+
+UPDATE departments
+SET budget = budget - 10000
+WHERE dept_id = 10 AND budget >= 10000;
+
+UPDATE departments
+SET budget = budget + 10000
+WHERE dept_id = 20;
+
+COMMIT;
+
+-- Q17. Check team_lead privileges
+SHOW GRANTS FOR 'team_lead'@'localhost';
+
+-- Q18. Revoke delegation rights only
+REVOKE GRANT OPTION ON company_db.*
+FROM 'team_lead'@'localhost';
+
+-- Q19. Ship order only if total_amount >= 500
+START TRANSACTION;
+
+UPDATE orders
+SET status = 'Shipped'
+WHERE order_id = 5002
+  AND total_amount >= 500;
+
+-- Order 5002 costs 450, so no row is updated.
+-- ROLLBACK if the amount is below 500; otherwise COMMIT.
+ROLLBACK;
+
+-- Q20. Create role and assign it to analyst
+CREATE ROLE 'reporter_role';
+
+GRANT SELECT ON company_db.*
+TO 'reporter_role';
+
+GRANT 'reporter_role' TO 'analyst'@'localhost';
+
+SET DEFAULT ROLE 'reporter_role'
+TO 'analyst'@'localhost';
+-- Q21. Salary increase with budget limit
+START TRANSACTION;
+
+UPDATE employees
+SET salary = salary * 1.15
+WHERE dept_id = 10;
+
+SAVEPOINT sp_salary_done;
+
+UPDATE departments
+SET budget = budget + 50000
+WHERE dept_id = 10;
+
+-- Check budget:
+SELECT budget FROM departments WHERE dept_id = 10;
+
+-- If budget exceeds 520000, execute:
+ROLLBACK TO SAVEPOINT sp_salary_done;
+
+-- If the transaction is valid, execute COMMIT instead.
+-- Finish with COMMIT after validation.
+
+-- Q22. Lock employee row before updating
+START TRANSACTION;
+
+SELECT *
+FROM employees
+WHERE emp_id = 101
+FOR UPDATE;
+
+UPDATE employees
+SET salary = 88000.00
+WHERE emp_id = 101;
+
+COMMIT;
+
+-- Q23. Shared lock for analytical report
+START TRANSACTION;
+
+SELECT *
+FROM departments
+WHERE dept_id = 10
+FOR SHARE;
+
+SELECT * FROM employees WHERE dept_id = 10;
+
+COMMIT;
+
+-- Q24. Limit auditor resources
+ALTER USER 'auditor'@'localhost'
+WITH MAX_QUERIES_PER_HOUR 100
+     MAX_USER_CONNECTIONS 2;
+
+-- Q25. Cancel order and refund budget
+-- Requires manager to have UPDATE permission on departments.
+START TRANSACTION;
+
+UPDATE orders
+SET status = 'Cancelled'
+WHERE order_id = 5002
+  AND status = 'Pending'
+  AND total_amount = 450.00;
+
+UPDATE departments
+SET budget = budget + 450.00
+WHERE dept_id = 20;
+
+-- Commit only after verifying both updates succeeded.
+COMMIT;
+
+-- Q26. Create roles and configure inheritance
+CREATE ROLE 'read_role';
+CREATE ROLE 'write_role';
+CREATE ROLE 'admin_role';
+
+GRANT SELECT ON company_db.*
+TO 'read_role';
+
+GRANT SELECT, INSERT, UPDATE, DELETE
+ON company_db.*
+TO 'write_role';
+
+GRANT 'read_role', 'write_role'
+TO 'admin_role';
+
+CREATE USER 'super_dev'@'localhost'
+IDENTIFIED BY 'SuperDevPass2026!';
+
+GRANT 'admin_role' TO 'super_dev'@'localhost';
+
+SET DEFAULT ROLE 'admin_role'
+TO 'super_dev'@'localhost';
+
+-- Q27. Deadlock simulation
+-- SESSION 1: Login as dev_user
+START TRANSACTION;
+UPDATE employees SET salary = salary + 100
+WHERE emp_id = 101;
+
+-- SESSION 2: Login as hr_assistant
+START TRANSACTION;
+UPDATE employees SET salary = salary + 100
+WHERE emp_id = 102;
+
+-- SESSION 1: Run next; it waits for Session 2
+UPDATE employees SET salary = salary + 100
+WHERE emp_id = 102;
+
+-- SESSION 2: Run next; creates a deadlock cycle
+UPDATE employees SET salary = salary + 100
+WHERE emp_id = 101;
+
+-- InnoDB detects the deadlock and rolls back one transaction.
+-- Commit the surviving transaction after checking its result.
+
+-- Q28. Create remote account requiring TLS/SSL
+CREATE USER 'cloud_user'@'%'
+IDENTIFIED BY 'CloudPass2026!'
+REQUIRE SSL;
+
+GRANT SELECT, INSERT ON company_db.*
+TO 'cloud_user'@'%';
+
+-- Q29. Batch insert with savepoints
+START TRANSACTION;
+
+INSERT INTO orders
+(order_id, customer_name, order_date, total_amount, status)
+VALUES
+(5008, 'Customer 5008', '2026-10-17', 600.00, 'Pending');
+
+SAVEPOINT sp_5008;
+
+INSERT INTO orders
+(order_id, customer_name, order_date, total_amount, status)
+VALUES
+(5009, 'Customer 5009', '2026-10-17', 300.00, 'Pending');
+
+SAVEPOINT sp_5009;
+
+-- If order 5009 fails business rules:
+ROLLBACK TO SAVEPOINT sp_5008;
+
+-- If both orders are valid, use COMMIT instead.
+-- Finish with COMMIT after validation.
+
+-- Q30. Administrative maintenance
+CREATE USER 'test_maint'@'localhost'
+IDENTIFIED BY 'MaintPass2026!';
+
+GRANT SELECT, INSERT, UPDATE ON company_db.*
+TO 'test_maint'@'localhost';
+
+START TRANSACTION;
+
+UPDATE employees
+SET is_active = FALSE
+WHERE emp_id = 104;
+
+ROLLBACK;
+
+SHOW GRANTS FOR 'test_maint'@'localhost';
+
+REVOKE SELECT, INSERT, UPDATE ON company_db.*
+FROM 'test_maint'@'localhost';
+
+ALTER USER 'test_maint'@'localhost' ACCOUNT LOCK;

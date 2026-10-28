@@ -1,0 +1,951 @@
+from flask import Flask, request, redirect, url_for, render_template_string
+from pymongo import MongoClient
+from pymongo.errors import PyMongoError
+from datetime import datetime
+
+app = Flask(__name__)
+
+# MongoDB Connection
+client = MongoClient("mongodb://localhost:27017/", serverSelectionTimeoutMS=3000)
+db = client["HospitalDB"]
+medicines = db["medicines"]
+
+# HTML + CSS in the same Python file
+PAGE = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Hospital Medicine Management System</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #f0f4f8;
+            margin: 0;
+            color: #263238;
+        }
+
+        header {
+            background: #087f8c;
+            color: white;
+            text-align: center;
+            padding: 22px;
+        }
+
+        nav {
+            background: #05616b;
+            padding: 14px;
+            text-align: center;
+        }
+
+        nav a {
+            color: white;
+            text-decoration: none;
+            margin: 7px;
+            display: inline-block;
+            font-weight: bold;
+        }
+
+        nav a:hover {
+            color: #ffe082;
+        }
+
+        .container {
+            max-width: 1100px;
+            width: 94%;
+            margin: 25px auto;
+            background: white;
+            padding: 22px;
+            border-radius: 10px;
+            box-shadow: 0 3px 12px #00000015;
+        }
+
+        h2 {
+            color: #087f8c;
+        }
+
+        input, select, button {
+            width: 100%;
+            padding: 11px;
+            margin: 7px 0 14px;
+            border: 1px solid #ccd5dc;
+            border-radius: 5px;
+            font-size: 15px;
+        }
+
+        button, .btn {
+            background: #087f8c;
+            color: white;
+            border: none;
+            cursor: pointer;
+            text-decoration: none;
+            padding: 10px 14px;
+            border-radius: 5px;
+            display: inline-block;
+        }
+
+        button:hover, .btn:hover {
+            background: #05616b;
+        }
+
+        .danger {
+            background: #d93636;
+        }
+
+        .danger:hover {
+            background: #a82020;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 18px;
+        }
+
+        th, td {
+            border: 1px solid #d8e0e5;
+            padding: 10px;
+            text-align: left;
+        }
+
+        th {
+            background: #087f8c;
+            color: white;
+        }
+
+        tr:nth-child(even) {
+            background: #f4f8fa;
+        }
+
+        .message {
+            background: #e0f5e9;
+            padding: 12px;
+            border-left: 5px solid #159447;
+            margin-bottom: 15px;
+        }
+
+        .error {
+            background: #ffe5e5;
+            border-left-color: #d93636;
+        }
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+        }
+
+        .card {
+            background: #e5f5f6;
+            padding: 18px;
+            border-radius: 8px;
+        }
+
+        .card h3 {
+            margin-top: 0;
+        }
+
+        .inline-form {
+            display: inline;
+        }
+
+        .inline-form button {
+            width: auto;
+            margin: 2px;
+        }
+
+        footer {
+            text-align: center;
+            padding: 18px;
+            color: #65757d;
+        }
+
+        @media(max-width: 650px) {
+            .container {
+                padding: 12px;
+            }
+
+            table {
+                display: block;
+                overflow-x: auto;
+                white-space: nowrap;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    <h1>Hospital Medicine Management System</h1>
+    <p>Medicine Inventory Management using Python Flask and MongoDB</p>
+</header>
+
+<nav>
+    <a href="/">Home</a>
+    <a href="/add">Add Medicine</a>
+    <a href="/view">View Medicines</a>
+    <a href="/search">Search</a>
+    <a href="/update">Update Stock</a>
+    <a href="/delete">Delete</a>
+    <a href="/low-stock">Low Stock</a>
+    <a href="/report">Inventory Report</a>
+    <a href="/queries">MongoDB Queries</a>
+</nav>
+
+<div class="container">
+
+    {% if message %}
+        <div class="message {% if error %}error{% endif %}">
+            {{ message }}
+        </div>
+    {% endif %}
+
+    {{ content|safe }}
+
+</div>
+
+<footer>
+    MCA105P | Database Technologies Lab | Hospital Medicine Management System
+</footer>
+
+</body>
+</html>
+"""
+
+
+def render_page(content, message="", error=False):
+    return render_template_string(
+        PAGE,
+        content=content,
+        message=message,
+        error=error
+    )
+
+
+def mongo_ready():
+    client.admin.command("ping")
+
+
+def get_medicine_id(value):
+    return int(value)
+
+
+# Q1: Insert at least 8 sample medicine documents
+def insert_sample_data():
+    if medicines.count_documents({}) == 0:
+        sample_medicines = [
+            {
+                "medicine_id": 301,
+                "name": "Paracetamol",
+                "category": "Analgesic",
+                "price": 25,
+                "stock": 100,
+                "manufacturer": "ABC Pharma",
+                "supplier": {
+                    "name": "Health Distributors",
+                    "phone": "9876543210",
+                    "city": "Haridwar"
+                }
+            },
+            {
+                "medicine_id": 302,
+                "name": "Amoxicillin",
+                "category": "Antibiotic",
+                "price": 80,
+                "stock": 25,
+                "manufacturer": "MediCare Ltd",
+                "supplier": {
+                    "name": "Care Suppliers",
+                    "phone": "9876543211",
+                    "city": "Dehradun"
+                }
+            },
+            {
+                "medicine_id": 303,
+                "name": "Cetirizine",
+                "category": "Antihistamine",
+                "price": 35,
+                "stock": 15,
+                "manufacturer": "HealthPlus",
+                "supplier": {
+                    "name": "City Medical Supply",
+                    "phone": "9876543212",
+                    "city": "Roorkee"
+                }
+            },
+            {
+                "medicine_id": 304,
+                "name": "Ibuprofen",
+                "category": "Analgesic",
+                "price": 60,
+                "stock": 50,
+                "manufacturer": "ABC Pharma",
+                "supplier": {
+                    "name": "Health Distributors",
+                    "phone": "9876543210",
+                    "city": "Haridwar"
+                }
+            },
+            {
+                "medicine_id": 305,
+                "name": "Vitamin C",
+                "category": "Supplement",
+                "price": 120,
+                "stock": 20,
+                "manufacturer": "NutriCare",
+                "supplier": {
+                    "name": "Wellness Supply",
+                    "phone": "9876543213",
+                    "city": "Delhi"
+                }
+            },
+            {
+                "medicine_id": 306,
+                "name": "Antacid",
+                "category": "Digestive",
+                "price": 45,
+                "stock": 8,
+                "manufacturer": "MediCare Ltd",
+                "supplier": {
+                    "name": "Care Suppliers",
+                    "phone": "9876543211",
+                    "city": "Dehradun"
+                }
+            },
+            {
+                "medicine_id": 307,
+                "name": "Cough Syrup",
+                "category": "Cough",
+                "price": 95,
+                "stock": 60,
+                "manufacturer": "HealthPlus",
+                "supplier": {
+                    "name": "City Medical Supply",
+                    "phone": "9876543212",
+                    "city": "Roorkee"
+                }
+            },
+            {
+                "medicine_id": 308,
+                "name": "Insulin",
+                "category": "Diabetes",
+                "price": 250,
+                "stock": 12,
+                "manufacturer": "LifeCare",
+                "supplier": {
+                    "name": "Wellness Supply",
+                    "phone": "9876543213",
+                    "city": "Delhi"
+                }
+            }
+        ]
+
+        medicines.insert_many(sample_medicines)
+
+
+def medicine_table(data):
+    rows = ""
+
+    for m in data:
+        supplier = m.get("supplier", {})
+        supplier_name = supplier.get("name", "N/A")
+        supplier_phone = supplier.get("phone", "N/A")
+        supplier_city = supplier.get("city", "N/A")
+
+        rows += f"""
+        <tr>
+            <td>{m.get('medicine_id', '')}</td>
+            <td>{m.get('name', '')}</td>
+            <td>{m.get('category', '')}</td>
+            <td>₹{m.get('price', 0)}</td>
+            <td>{m.get('stock', 0)}</td>
+            <td>{m.get('manufacturer', '')}</td>
+            <td>{supplier_name}<br>{supplier_phone}<br>{supplier_city}</td>
+            <td>
+                <form class="inline-form" method="POST"
+                      action="/delete">
+                    <input type="hidden" name="medicine_id"
+                           value="{m.get('medicine_id', '')}">
+                    <button class="danger" type="submit"
+                            onclick="return confirm('Delete this medicine?')">
+                        Delete
+                    </button>
+                </form>
+            </td>
+        </tr>
+        """
+
+    if not rows:
+        rows = "<tr><td colspan='8'>No medicines found.</td></tr>"
+
+    return f"""
+    <h2>Medicine Records</h2>
+    <table>
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Category</th>
+            <th>Price</th>
+            <th>Stock</th>
+            <th>Manufacturer</th>
+            <th>Supplier Details</th>
+            <th>Action</th>
+        </tr>
+        {rows}
+    </table>
+    """
+
+
+# Home Page
+@app.route("/")
+def home():
+    try:
+        mongo_ready()
+        total = medicines.count_documents({})
+
+        content = f"""
+        <h2>Welcome to Hospital Medicine Management</h2>
+        <p>MongoDB connection successful.</p>
+
+        <div class="cards">
+            <div class="card">
+                <h3>Total Medicines</h3>
+                <h2>{total}</h2>
+            </div>
+
+            <div class="card">
+                <h3>Add Medicine</h3>
+                <p>Add a new medicine record.</p>
+                <a class="btn" href="/add">Open</a>
+            </div>
+
+            <div class="card">
+                <h3>View Medicines</h3>
+                <p>See all stored records.</p>
+                <a class="btn" href="/view">Open</a>
+            </div>
+
+            <div class="card">
+                <h3>Inventory Report</h3>
+                <p>View inventory statistics.</p>
+                <a class="btn" href="/report">Open</a>
+            </div>
+        </div>
+        """
+        return render_page(content)
+
+    except PyMongoError:
+        return render_page(
+            "<h2>MongoDB Connection Failed</h2>"
+            "<p>Start MongoDB and restart this application.</p>",
+            error=True
+        )
+
+
+# Q2 and Q3: Medicine entry form with CSS
+@app.route("/add", methods=["GET", "POST"])
+def add_medicine():
+    if request.method == "POST":
+        try:
+            medicine_id = get_medicine_id(
+                request.form["medicine_id"]
+            )
+            name = request.form["name"].strip()
+            category = request.form["category"].strip()
+            price = float(request.form["price"])
+            stock = int(request.form["stock"])
+            manufacturer = request.form["manufacturer"].strip()
+
+            supplier_name = request.form.get("supplier_name", "").strip()
+            supplier_phone = request.form.get("supplier_phone", "").strip()
+            supplier_city = request.form.get("supplier_city", "").strip()
+
+            if not name or not category or not manufacturer:
+                return add_form("Please fill all required fields.", True)
+
+            if price < 0 or stock < 0:
+                return add_form("Price and stock cannot be negative.", True)
+
+            if medicines.find_one({"medicine_id": medicine_id}):
+                return add_form("Medicine ID already exists.", True)
+
+            medicine = {
+                "medicine_id": medicine_id,
+                "name": name,
+                "category": category,
+                "price": price,
+                "stock": stock,
+                "manufacturer": manufacturer,
+                "supplier": {
+                    "name": supplier_name,
+                    "phone": supplier_phone,
+                    "city": supplier_city
+                }
+            }
+
+            medicines.insert_one(medicine)
+
+            return redirect(
+                url_for(
+                    "view_medicines",
+                    message="Medicine added successfully."
+                )
+            )
+
+        except (ValueError, KeyError):
+            return add_form("Enter valid medicine details.", True)
+
+        except PyMongoError:
+            return add_form("Database operation failed.", True)
+
+    return add_form()
+
+
+def add_form(message="", error=False):
+    content = """
+    <h2>Add New Medicine</h2>
+
+    <form method="POST">
+        <label>Medicine ID</label>
+        <input type="number" name="medicine_id" required>
+
+        <label>Medicine Name</label>
+        <input type="text" name="name" required>
+
+        <label>Category</label>
+        <input type="text" name="category" required>
+
+        <label>Price (₹)</label>
+        <input type="number" name="price" min="0"
+               step="0.01" required>
+
+        <label>Stock</label>
+        <input type="number" name="stock" min="0" required>
+
+        <label>Manufacturer</label>
+        <input type="text" name="manufacturer" required>
+
+        <h3>Supplier Information (Optional)</h3>
+
+        <label>Supplier Name</label>
+        <input type="text" name="supplier_name">
+
+        <label>Supplier Phone</label>
+        <input type="text" name="supplier_phone">
+
+        <label>Supplier City</label>
+        <input type="text" name="supplier_city">
+
+        <button type="submit">Add Medicine</button>
+    </form>
+    """
+
+    return render_page(content, message, error)
+
+
+# Q6 and Q11: View medicines and embedded supplier details
+@app.route("/view")
+def view_medicines():
+    try:
+        data = list(medicines.find().sort("medicine_id", 1))
+        content = medicine_table(data)
+
+        return render_page(
+            content,
+            request.args.get("message", "")
+        )
+
+    except PyMongoError:
+        return render_page("Database operation failed.", error=True)
+
+
+# Q7: Search by Medicine ID or Medicine Name
+@app.route("/search", methods=["GET", "POST"])
+def search_medicine():
+    content = """
+    <h2>Search Medicine</h2>
+
+    <form method="POST">
+        <label>Medicine ID or Medicine Name</label>
+        <input type="text" name="keyword"
+               placeholder="Enter ID or name" required>
+
+        <button type="submit">Search</button>
+    </form>
+    """
+
+    if request.method == "POST":
+        keyword = request.form["keyword"].strip()
+
+        if not keyword:
+            return render_page(content, "Enter a medicine ID or name.", True)
+
+        try:
+            conditions = [
+                {"name": {"$regex": keyword, "$options": "i"}}
+            ]
+
+            if keyword.isdigit():
+                conditions.append(
+                    {"medicine_id": int(keyword)}
+                )
+
+            data = list(
+                medicines.find({"$or": conditions})
+                .sort("medicine_id", 1)
+            )
+
+            content += medicine_table(data)
+
+            if not data:
+                return render_page(
+                    content,
+                    "No medicine found.",
+                    True
+                )
+
+            return render_page(content, "Search completed.")
+
+        except PyMongoError:
+            return render_page(content, "Search failed.", True)
+
+    return render_page(content)
+
+
+# Q8: Update medicine stock
+@app.route("/update", methods=["GET", "POST"])
+def update_stock():
+    content = """
+    <h2>Update Medicine Stock</h2>
+
+    <form method="POST">
+        <label>Medicine ID</label>
+        <input type="number" name="medicine_id" required>
+
+        <label>New Stock</label>
+        <input type="number" name="stock" min="0" required>
+
+        <button type="submit">Update Stock</button>
+    </form>
+    """
+
+    if request.method == "POST":
+        try:
+            medicine_id = int(request.form["medicine_id"])
+            stock = int(request.form["stock"])
+
+            if stock < 0:
+                return render_page(
+                    content,
+                    "Stock cannot be negative.",
+                    True
+                )
+
+            result = medicines.update_one(
+                {"medicine_id": medicine_id},
+                {"$set": {"stock": stock}}
+            )
+
+            if result.matched_count == 0:
+                return render_page(
+                    content,
+                    "Medicine ID not found.",
+                    True
+                )
+
+            updated = medicines.find_one(
+                {"medicine_id": medicine_id}
+            )
+
+            content += medicine_table([updated])
+
+            return render_page(
+                content,
+                "Stock updated successfully."
+            )
+
+        except (ValueError, KeyError):
+            return render_page(content, "Enter valid details.", True)
+
+        except PyMongoError:
+            return render_page(content, "Stock update failed.", True)
+
+    return render_page(content)
+
+
+# Q9: Delete medicine by ID
+@app.route("/delete", methods=["GET", "POST"])
+def delete_medicine():
+    content = """
+    <h2>Delete Medicine</h2>
+
+    <form method="POST">
+        <label>Medicine ID</label>
+        <input type="number" name="medicine_id" required>
+
+        <button class="danger" type="submit">
+            Delete Medicine
+        </button>
+    </form>
+    """
+
+    if request.method == "POST":
+        try:
+            medicine_id = int(request.form["medicine_id"])
+
+            result = medicines.delete_one(
+                {"medicine_id": medicine_id}
+            )
+
+            if result.deleted_count == 1:
+                return render_page(
+                    content,
+                    "Medicine deleted successfully."
+                )
+
+            return render_page(
+                content,
+                "Medicine ID not found.",
+                True
+            )
+
+        except (ValueError, KeyError):
+            return render_page(content, "Enter a valid ID.", True)
+
+        except PyMongoError:
+            return render_page(content, "Delete operation failed.", True)
+
+    return render_page(content)
+
+
+# Low stock medicines
+@app.route("/low-stock")
+def low_stock():
+    try:
+        data = list(
+            medicines.find({"stock": {"$lt": 30}})
+            .sort("stock", 1)
+        )
+
+        return render_page(
+            medicine_table(data),
+            "Low stock medicines: stock less than 30."
+        )
+
+    except PyMongoError:
+        return render_page("Database query failed.", error=True)
+
+
+# Q10: MongoDB filtering and sorting queries
+@app.route("/queries", methods=["GET", "POST"])
+def queries():
+    content = """
+    <h2>MongoDB Query Practice</h2>
+
+    <form method="POST">
+        <label>Select Query</label>
+
+        <select name="query_type">
+            <option value="category">Filter by Category</option>
+            <option value="gt50">Price Greater Than ₹50</option>
+            <option value="lt100">Price Less Than ₹100</option>
+            <option value="lowstock">Stock Less Than 30</option>
+            <option value="manufacturer">Filter by Manufacturer</option>
+            <option value="priceasc">Sort by Price (Ascending)</option>
+            <option value="pricedesc">Sort by Price (Descending)</option>
+            <option value="stockasc">Sort by Stock (Ascending)</option>
+            <option value="stockdesc">Sort by Stock (Descending)</option>
+        </select>
+
+        <label>Category / Manufacturer</label>
+        <input type="text" name="keyword"
+               placeholder="Enter category or manufacturer">
+
+        <button type="submit">Run Query</button>
+    </form>
+    """
+
+    if request.method == "POST":
+        query_type = request.form.get("query_type")
+        keyword = request.form.get("keyword", "").strip()
+
+        query = {}
+        sort_field = "medicine_id"
+        sort_order = 1
+
+        if query_type == "category":
+            if not keyword:
+                return render_page(
+                    content,
+                    "Enter a category name.",
+                    True
+                )
+            query = {"category": {"$regex": keyword, "$options": "i"}}
+
+        elif query_type == "gt50":
+            query = {"price": {"$gt": 50}}
+
+        elif query_type == "lt100":
+            query = {"price": {"$lt": 100}}
+
+        elif query_type == "lowstock":
+            query = {"stock": {"$lt": 30}}
+
+        elif query_type == "manufacturer":
+            if not keyword:
+                return render_page(
+                    content,
+                    "Enter a manufacturer name.",
+                    True
+                )
+            query = {
+                "manufacturer": {
+                    "$regex": keyword,
+                    "$options": "i"
+                }
+            }
+
+        elif query_type == "priceasc":
+            sort_field, sort_order = "price", 1
+
+        elif query_type == "pricedesc":
+            sort_field, sort_order = "price", -1
+
+        elif query_type == "stockasc":
+            sort_field, sort_order = "stock", 1
+
+        elif query_type == "stockdesc":
+            sort_field, sort_order = "stock", -1
+
+        try:
+            data = list(
+                medicines.find(query)
+                .sort(sort_field, sort_order)
+            )
+
+            content += medicine_table(data)
+
+            return render_page(
+                content,
+                f"Query executed. Records found: {len(data)}"
+            )
+
+        except PyMongoError:
+            return render_page(content, "Query failed.", True)
+
+    return render_page(content)
+
+
+# Q12: Inventory Report
+@app.route("/report")
+def inventory_report():
+    try:
+        total_medicines = medicines.count_documents({})
+
+        pipeline = [
+            {
+                "$group": {
+                    "_id": None,
+                    "total_stock": {"$sum": "$stock"}
+                }
+            }
+        ]
+
+        stock_result = list(medicines.aggregate(pipeline))
+        total_stock = (
+            stock_result[0]["total_stock"]
+            if stock_result else 0
+        )
+
+        low_stock_count = medicines.count_documents(
+            {"stock": {"$lt": 30}}
+        )
+
+        expensive = medicines.find_one(
+            {},
+            sort=[("price", -1)]
+        )
+
+        cheapest = medicines.find_one(
+            {},
+            sort=[("price", 1)]
+        )
+
+        expensive_name = (
+            expensive["name"] if expensive else "No medicines"
+        )
+        expensive_price = (
+            expensive["price"] if expensive else 0
+        )
+
+        cheapest_name = (
+            cheapest["name"] if cheapest else "No medicines"
+        )
+        cheapest_price = (
+            cheapest["price"] if cheapest else 0
+        )
+
+        content = f"""
+        <h2>Medicine Inventory Report</h2>
+
+        <div class="cards">
+
+            <div class="card">
+                <h3>Total Medicines</h3>
+                <h2>{total_medicines}</h2>
+            </div>
+
+            <div class="card">
+                <h3>Total Stock</h3>
+                <h2>{total_stock}</h2>
+            </div>
+
+            <div class="card">
+                <h3>Low Stock Medicines</h3>
+                <h2>{low_stock_count}</h2>
+                <a class="btn" href="/low-stock">View</a>
+            </div>
+
+            <div class="card">
+                <h3>Most Expensive Medicine</h3>
+                <h2>{expensive_name}</h2>
+                <p>Price: ₹{expensive_price}</p>
+            </div>
+
+            <div class="card">
+                <h3>Cheapest Medicine</h3>
+                <h2>{cheapest_name}</h2>
+                <p>Price: ₹{cheapest_price}</p>
+            </div>
+
+        </div>
+        """
+
+        return render_page(content)
+
+    except PyMongoError:
+        return render_page("Report generation failed.", error=True)
+
+
+# Start the application
+if __name__ == "__main__":
+    try:
+        mongo_ready()
+        insert_sample_data()
+
+        print("MongoDB connected successfully!")
+        print("Database: HospitalDB")
+        print("Collection: medicines")
+        print("Sample data inserted if collection was empty.")
+
+    except PyMongoError as e:
+        print("MongoDB connection failed:", e)
+        print("Make sure MongoDB Server is running.")
+
+    app.run(debug=True)

@@ -1,0 +1,113 @@
+-- Q1: Calculate BMI
+CREATE FUNCTION calculate_bmi(weight_kg DECIMAL(5,2), height_m DECIMAL(4,2))
+RETURNS DECIMAL(6,2)
+DETERMINISTIC
+NO SQL
+BEGIN
+    RETURN weight_kg / (height_m * height_m);
+END //
+
+-- Q2: Age Category
+CREATE FUNCTION age_category(p_age INT)
+RETURNS VARCHAR(20)
+DETERMINISTIC
+NO SQL
+BEGIN
+    IF p_age < 18 THEN
+        RETURN 'Child';
+    ELSEIF p_age < 60 THEN
+        RETURN 'Adult';
+    ELSE
+        RETURN 'Senior';
+    END IF;
+END //
+
+-- Q3: Consultation Fee With Tax
+CREATE FUNCTION consultation_with_tax(
+    p_fee DECIMAL(10,2),
+    tax_percent DECIMAL(5,2)
+)
+RETURNS DECIMAL(10,2)
+DETERMINISTIC
+NO SQL
+BEGIN
+    RETURN p_fee + (p_fee * tax_percent / 100);
+END //
+
+-- Q4: Medicine Stock Value
+CREATE FUNCTION medicine_stock_value(
+    unit_price DECIMAL(10,2),
+    p_stock INT
+)
+RETURNS DECIMAL(12,2)
+DETERMINISTIC
+NO SQL
+BEGIN
+    RETURN unit_price * p_stock;
+END //
+
+-- Q5: Patients By Gender
+CREATE PROCEDURE patient_by_gender(IN p_gender VARCHAR(10))
+BEGIN
+    SELECT * FROM Patients
+    WHERE Gender = p_gender;
+END //
+
+-- Q6: Patients Above Age
+CREATE PROCEDURE patients_above_age(IN p_age INT)
+BEGIN
+    SELECT * FROM Patients
+    WHERE Age > p_age;
+END //
+
+-- Q7: Update Medicine Stock
+CREATE PROCEDURE update_medicine_stock(
+    IN p_id INT,
+    IN p_quantity INT
+)
+BEGIN
+    UPDATE Medicines
+    SET Stock = Stock + p_quantity
+    WHERE MedicineID = p_id;
+
+    SELECT * FROM Medicines
+    WHERE MedicineID = p_id;
+END //
+
+-- Q8: Count Medicines
+CREATE PROCEDURE medicine_count(OUT p_count INT)
+BEGIN
+    SELECT COUNT(*) INTO p_count
+    FROM Medicines;
+END //
+
+-- Q9: Patient Report
+CREATE PROCEDURE patient_report()
+BEGIN
+    SELECT
+        PatientID,
+        PatientName,
+        Age,
+        WeightKg,
+        calculate_bmi(WeightKg, 1.70) AS BMI,
+        age_category(Age) AS AgeCategory
+    FROM Patients;
+END //
+
+-- Q10: Medicine Report
+CREATE PROCEDURE medicine_report()
+BEGIN
+    SELECT
+        MedicineID,
+        MedicineName,
+        UnitPrice,
+        Stock,
+        medicine_stock_value(UnitPrice, Stock) AS StockValue,
+        CASE
+            WHEN Stock < 30 THEN 'Low Stock'
+            WHEN Stock < 60 THEN 'Medium Stock'
+            ELSE 'Sufficient Stock'
+        END AS StockStatus
+    FROM Medicines;
+END //
+

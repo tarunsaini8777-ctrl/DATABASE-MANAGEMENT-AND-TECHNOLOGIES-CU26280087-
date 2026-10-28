@@ -1,0 +1,425 @@
+-- Q1: Display all doctors
+CREATE PROCEDURE Cursor_Q1()
+BEGIN
+    DECLARE finished INT DEFAULT 0;
+    DECLARE v_id INT;
+    DECLARE v_name VARCHAR(50);
+
+    DECLARE cur CURSOR FOR
+        SELECT DoctorID, DoctorName FROM Doctors;
+
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = 1;
+
+    OPEN cur;
+    read_loop: LOOP
+        FETCH cur INTO v_id, v_name;
+        IF finished = 1 THEN
+            LEAVE read_loop;
+        END IF;
+        SELECT v_id AS DoctorID, v_name AS DoctorName;
+    END LOOP;
+    CLOSE cur;
+END //
+
+-- Q2: Doctors with fee greater than 1000
+CREATE PROCEDURE Cursor_Q2()
+BEGIN
+    DECLARE finished INT DEFAULT 0;
+    DECLARE v_id INT;
+    DECLARE v_name VARCHAR(50);
+    DECLARE v_fee DECIMAL(10,2);
+
+    DECLARE cur CURSOR FOR
+        SELECT DoctorID, DoctorName, ConsultationFee
+        FROM Doctors WHERE ConsultationFee > 1000;
+
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = 1;
+
+    OPEN cur;
+    read_loop: LOOP
+        FETCH cur INTO v_id, v_name, v_fee;
+        IF finished = 1 THEN LEAVE read_loop; END IF;
+        SELECT v_id AS DoctorID, v_name AS DoctorName, v_fee AS Fee;
+    END LOOP;
+    CLOSE cur;
+END //
+
+-- Q3: Total consultation fees
+CREATE PROCEDURE Cursor_Q3(OUT total_fee DECIMAL(10,2))
+BEGIN
+    DECLARE finished INT DEFAULT 0;
+    DECLARE v_fee DECIMAL(10,2);
+    DECLARE cur CURSOR FOR SELECT ConsultationFee FROM Doctors;
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = 1;
+
+    SET total_fee = 0;
+    OPEN cur;
+    read_loop: LOOP
+        FETCH cur INTO v_fee;
+        IF finished = 1 THEN LEAVE read_loop; END IF;
+        SET total_fee = total_fee + v_fee;
+    END LOOP;
+    CLOSE cur;
+END //
+
+-- Q4: Count Cardiology doctors
+CREATE PROCEDURE Cursor_Q4(OUT doctor_count INT)
+BEGIN
+    DECLARE finished INT DEFAULT 0;
+    DECLARE v_dept VARCHAR(40);
+    DECLARE cur CURSOR FOR SELECT Department FROM Doctors;
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = 1;
+
+    SET doctor_count = 0;
+    OPEN cur;
+    read_loop: LOOP
+        FETCH cur INTO v_dept;
+        IF finished = 1 THEN LEAVE read_loop; END IF;
+        IF v_dept = 'Cardiology' THEN
+            SET doctor_count = doctor_count + 1;
+        END IF;
+    END LOOP;
+    CLOSE cur;
+END //
+
+-- Q5: Average consultation fee
+CREATE PROCEDURE Cursor_Q5(OUT average_fee DECIMAL(10,2))
+BEGIN
+    DECLARE finished INT DEFAULT 0;
+    DECLARE v_fee DECIMAL(10,2);
+    DECLARE total_fee DECIMAL(12,2) DEFAULT 0;
+    DECLARE total_count INT DEFAULT 0;
+
+    DECLARE cur CURSOR FOR SELECT ConsultationFee FROM Doctors;
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = 1;
+
+    OPEN cur;
+    read_loop: LOOP
+        FETCH cur INTO v_fee;
+        IF finished = 1 THEN LEAVE read_loop; END IF;
+        SET total_fee = total_fee + v_fee;
+        SET total_count = total_count + 1;
+    END LOOP;
+    CLOSE cur;
+
+    IF total_count = 0 THEN
+        SET average_fee = NULL;
+    ELSE
+        SET average_fee = total_fee / total_count;
+    END IF;
+END //
+
+-- Q6: Increase Pediatrics fees by 10%
+CREATE PROCEDURE Cursor_Q6()
+BEGIN
+    DECLARE finished INT DEFAULT 0;
+    DECLARE v_id INT;
+    DECLARE v_fee DECIMAL(10,2);
+
+    DECLARE cur CURSOR FOR
+        SELECT DoctorID, ConsultationFee
+        FROM Doctors WHERE Department = 'Pediatrics';
+
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = 1;
+
+    OPEN cur;
+    read_loop: LOOP
+        FETCH cur INTO v_id, v_fee;
+        IF finished = 1 THEN LEAVE read_loop; END IF;
+        UPDATE Doctors
+        SET ConsultationFee = v_fee * 1.10
+        WHERE DoctorID = v_id;
+    END LOOP;
+    CLOSE cur;
+END //
+
+-- Q7: Set Review for fees below 1000
+CREATE PROCEDURE Cursor_Q7()
+BEGIN
+    DECLARE finished INT DEFAULT 0;
+    DECLARE v_id INT;
+    DECLARE v_fee DECIMAL(10,2);
+
+    DECLARE cur CURSOR FOR
+        SELECT DoctorID, ConsultationFee FROM Doctors;
+
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = 1;
+
+    OPEN cur;
+    read_loop: LOOP
+        FETCH cur INTO v_id, v_fee;
+        IF finished = 1 THEN LEAVE read_loop; END IF;
+        IF v_fee < 1000 THEN
+            UPDATE Doctors SET Status = 'Review'
+            WHERE DoctorID = v_id;
+        END IF;
+    END LOOP;
+    CLOSE cur;
+END //
+
+-- Q8: Doctor report ordered by department and name
+CREATE PROCEDURE Cursor_Q8()
+BEGIN
+    DECLARE finished INT DEFAULT 0;
+    DECLARE v_name VARCHAR(50);
+    DECLARE v_dept VARCHAR(40);
+    DECLARE v_fee DECIMAL(10,2);
+
+    DECLARE cur CURSOR FOR
+        SELECT DoctorName, Department, ConsultationFee
+        FROM Doctors ORDER BY Department, DoctorName;
+
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = 1;
+
+    OPEN cur;
+    read_loop: LOOP
+        FETCH cur INTO v_name, v_dept, v_fee;
+        IF finished = 1 THEN LEAVE read_loop; END IF;
+        SELECT v_name AS DoctorName, v_dept AS Department,
+               v_fee AS ConsultationFee;
+    END LOOP;
+    CLOSE cur;
+END //
+
+-- Q9: Count Active doctors
+CREATE PROCEDURE Cursor_Q9(OUT active_count INT)
+BEGIN
+    DECLARE finished INT DEFAULT 0;
+    DECLARE v_status VARCHAR(20);
+    DECLARE cur CURSOR FOR SELECT Status FROM Doctors;
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = 1;
+
+    SET active_count = 0;
+    OPEN cur;
+    read_loop: LOOP
+        FETCH cur INTO v_status;
+        IF finished = 1 THEN LEAVE read_loop; END IF;
+        IF v_status = 'Active' THEN
+            SET active_count = active_count + 1;
+        END IF;
+    END LOOP;
+    CLOSE cur;
+END //
+
+-- Q10: Increase fees by 5% where fee >= 1200
+CREATE PROCEDURE Cursor_Q10()
+BEGIN
+    DECLARE finished INT DEFAULT 0;
+    DECLARE v_id INT;
+    DECLARE v_fee DECIMAL(10,2);
+
+    DECLARE cur CURSOR FOR
+        SELECT DoctorID, ConsultationFee
+        FROM Doctors WHERE ConsultationFee >= 1200;
+
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = 1;
+
+    OPEN cur;
+    read_loop: LOOP
+        FETCH cur INTO v_id, v_fee;
+        IF finished = 1 THEN LEAVE read_loop; END IF;
+        UPDATE Doctors
+        SET ConsultationFee = v_fee * 1.05
+        WHERE DoctorID = v_id;
+    END LOOP;
+    CLOSE cur;
+END //
+
+DELIMITER ;
+
+-- =========================================
+-- TEST CURSOR PROCEDURES
+-- =========================================
+
+CALL Cursor_Q1();
+CALL Cursor_Q2();
+
+CALL Cursor_Q3(@total_fee);
+SELECT @total_fee AS TotalConsultationFee;
+
+CALL Cursor_Q4(@cardiology_count);
+SELECT @cardiology_count AS CardiologyDoctors;
+
+CALL Cursor_Q5(@average_fee);
+SELECT @average_fee AS AverageConsultationFee;
+
+CALL Cursor_Q6();
+SELECT * FROM Doctors;
+
+CALL Cursor_Q7();
+SELECT * FROM Doctors;
+
+CALL Cursor_Q8();
+
+CALL Cursor_Q9(@active_count);
+SELECT @active_count AS ActiveDoctors;
+
+CALL Cursor_Q10();
+SELECT * FROM Doctors;
+
+-- =========================================
+-- PART B: TRIGGERS (Q1-Q10)
+-- =========================================
+
+DELIMITER //
+
+-- Trigger Q1: Audit after inserting doctor
+CREATE TRIGGER Trigger_Q1
+AFTER INSERT ON Doctors
+FOR EACH ROW
+BEGIN
+    INSERT INTO Doctor_Audit
+        (DoctorID, ActionType, NewFee)
+    VALUES
+        (NEW.DoctorID, 'INSERT', NEW.ConsultationFee);
+END //
+
+-- Trigger Q2: Audit changed consultation fee
+CREATE TRIGGER Trigger_Q2
+AFTER UPDATE ON Doctors
+FOR EACH ROW
+BEGIN
+    IF OLD.ConsultationFee <> NEW.ConsultationFee THEN
+        INSERT INTO Doctor_Audit
+            (DoctorID, ActionType, OldFee, NewFee)
+        VALUES
+            (NEW.DoctorID, 'UPDATE_FEE',
+             OLD.ConsultationFee, NEW.ConsultationFee);
+    END IF;
+END //
+
+-- Trigger Q3: Convert doctor name to uppercase
+CREATE TRIGGER Trigger_Q3
+BEFORE INSERT ON Doctors
+FOR EACH ROW
+BEGIN
+    SET NEW.DoctorName = UPPER(NEW.DoctorName);
+END //
+
+-- Trigger Q4: Prevent negative fee during insert
+CREATE TRIGGER Trigger_Q4
+BEFORE INSERT ON Doctors
+FOR EACH ROW
+BEGIN
+    IF NEW.ConsultationFee < 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Consultation fee cannot be negative';
+    END IF;
+END //
+
+-- Trigger Q5: Audit deleted doctor
+CREATE TRIGGER Trigger_Q5
+AFTER DELETE ON Doctors
+FOR EACH ROW
+BEGIN
+    INSERT INTO Doctor_Audit
+        (DoctorID, ActionType, OldFee)
+    VALUES
+        (OLD.DoctorID, 'DELETE', OLD.ConsultationFee);
+END //
+
+-- Trigger Q6: Log every changed consultation fee
+CREATE TRIGGER Trigger_Q6
+AFTER UPDATE ON Doctors
+FOR EACH ROW
+BEGIN
+    IF OLD.ConsultationFee <> NEW.ConsultationFee THEN
+        INSERT INTO Fee_Log
+            (DoctorID, DoctorName, OldFee, NewFee)
+        VALUES
+            (NEW.DoctorID, NEW.DoctorName,
+             OLD.ConsultationFee, NEW.ConsultationFee);
+    END IF;
+END //
+
+-- Trigger Q7: Prevent negative fee during update
+CREATE TRIGGER Trigger_Q7
+BEFORE UPDATE ON Doctors
+FOR EACH ROW
+BEGIN
+    IF NEW.ConsultationFee < 0 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Consultation fee cannot be negative';
+    END IF;
+END //
+
+-- Trigger Q8: Normalize lowercase active status
+CREATE TRIGGER Trigger_Q8
+BEFORE UPDATE ON Doctors
+FOR EACH ROW
+BEGIN
+    IF LOWER(NEW.Status) = 'active' THEN
+        SET NEW.Status = 'Active';
+    END IF;
+END //
+
+-- Trigger Q9: Audit department changes
+CREATE TRIGGER Trigger_Q9
+AFTER UPDATE ON Doctors
+FOR EACH ROW
+BEGIN
+    IF NOT (OLD.Department <=> NEW.Department) THEN
+        INSERT INTO Doctor_Audit
+            (DoctorID, ActionType, OldFee, NewFee)
+        VALUES
+            (NEW.DoctorID, 'DEPARTMENT_CHANGE',
+             OLD.ConsultationFee, NEW.ConsultationFee);
+    END IF;
+END //
+
+-- Trigger Q10: Validate doctor name
+CREATE TRIGGER Trigger_Q10
+BEFORE INSERT ON Doctors
+FOR EACH ROW
+BEGIN
+    IF NEW.DoctorName IS NULL OR TRIM(NEW.DoctorName) = '' THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Doctor name cannot be empty';
+    END IF;
+END //
+
+DELIMITER ;
+
+-- =========================================
+-- TEST TRIGGERS
+-- =========================================
+
+-- Q1 and Q3: Insert test doctor
+INSERT INTO Doctors
+VALUES (207, 'dr. test', 'Cardiology', 1100, 'Active');
+
+SELECT * FROM Doctors WHERE DoctorID = 207;
+SELECT * FROM Doctor_Audit WHERE DoctorID = 207;
+
+-- Q2 and Q6: Update fee
+UPDATE Doctors
+SET ConsultationFee = 1250
+WHERE DoctorID = 207;
+
+SELECT * FROM Doctor_Audit WHERE DoctorID = 207;
+SELECT * FROM Fee_Log WHERE DoctorID = 207;
+
+-- Q4: Test negative fee (expected error)
+-- Uncomment to test:
+-- INSERT INTO Doctors VALUES (208, 'Dr. Invalid', 'General', -100, 'Active');
+
+-- Q5: Delete test doctor
+DELETE FROM Doctors WHERE DoctorID = 207;
+SELECT * FROM Doctor_Audit WHERE DoctorID = 207;
+
+-- Q7: Test negative fee update (expected error)
+-- UPDATE Doctors SET ConsultationFee = -50 WHERE DoctorID = 201;
+
+-- Q8: Normalize status
+UPDATE Doctors SET Status = 'active' WHERE DoctorID = 201;
+SELECT DoctorID, Status FROM Doctors WHERE DoctorID = 201;
+
+-- Q9: Department change
+UPDATE Doctors SET Department = 'General Medicine'
+WHERE DoctorID = 201;
+
+SELECT * FROM Doctor_Audit WHERE DoctorID = 201;
+
+-- Q10: Empty name test (expected error)
+-- INSERT INTO Doctors VALUES (209, '', 'General', 500, 'Active');
+

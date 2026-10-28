@@ -1,0 +1,270 @@
+CREATE DATABASE IF NOT EXISTS CollegeDB;
+USE CollegeDB;
+
+-- =====================================
+-- DATABASE TABLES
+-- =====================================
+
+CREATE TABLE IF NOT EXISTS Department (
+    DeptID INT PRIMARY KEY,
+    DeptName VARCHAR(50) NOT NULL,
+    Location VARCHAR(50)
+);
+
+CREATE TABLE IF NOT EXISTS Student (
+    StudentID INT PRIMARY KEY,
+    StudentName VARCHAR(50) NOT NULL,
+    Age INT,
+    Gender VARCHAR(10),
+    Marks DECIMAL(5,2),
+    DeptID INT,
+    Email VARCHAR(100),
+    FOREIGN KEY (DeptID) REFERENCES Department(DeptID)
+);
+
+CREATE TABLE IF NOT EXISTS Course (
+    CourseID INT PRIMARY KEY,
+    CourseName VARCHAR(50) NOT NULL,
+    Credits INT
+);
+
+-- =====================================
+-- INSERT SAMPLE DATA
+-- =====================================
+
+INSERT IGNORE INTO Department VALUES
+(101, 'Computer Science', 'Block A'),
+(102, 'Pharmacy', 'Block B'),
+(103, 'Commerce', 'Block C'),
+(104, 'Mathematics', 'Block D');
+
+INSERT IGNORE INTO Student VALUES
+(1, 'Amit', 20, 'Male', 85.50, 101, 'amit@gmail.com'),
+(2, 'Priya', 21, 'Female', 92.00, 102, 'priya@gmail.com'),
+(3, 'Rahul', 19, 'Male', 76.50, 101, 'rahul@gmail.com'),
+(4, 'Neha', 22, 'Female', 88.00, 103, 'neha@gmail.com'),
+(5, 'Arjun', 20, 'Male', 69.50, 104, 'arjun@gmail.com'),
+(6, 'Sneha', 21, 'Female', 95.00, 102, 'sneha@gmail.com'),
+(7, 'Rohit', 23, 'Male', 72.00, 103, 'rohit@gmail.com'),
+(8, 'Pooja', 20, 'Female', 81.00, 104, 'pooja@gmail.com');
+
+INSERT IGNORE INTO Course VALUES
+(201, 'Database Management System', 4),
+(202, 'Python Programming', 4),
+(203, 'Mathematics', 3),
+(204, 'Computer Networks', 3),
+(205, 'Data Structures', 4);
+
+-- =====================================
+-- STORED PROCEDURES: Q1 TO Q10
+-- =====================================
+
+DELIMITER $$
+
+-- Q1. Display All Students
+CREATE PROCEDURE ShowStudents()
+BEGIN
+    SELECT * FROM Student;
+END $$
+
+-- Q2. Display All Departments
+CREATE PROCEDURE ShowDepartments()
+BEGIN
+    SELECT * FROM Department;
+END $$
+
+-- Q3. Display All Courses
+CREATE PROCEDURE ShowCourses()
+BEGIN
+    SELECT * FROM Course;
+END $$
+
+-- Q4. Display Student by ID
+CREATE PROCEDURE GetStudent(IN sid INT)
+BEGIN
+    SELECT * FROM Student
+    WHERE StudentID = sid;
+END $$
+
+-- Q5. Display Students by Department
+CREATE PROCEDURE GetStudentsByDept(IN did INT)
+BEGIN
+    SELECT * FROM Student
+    WHERE DeptID = did;
+END $$
+
+-- Q6. Students Above Given Marks
+CREATE PROCEDURE StudentsAboveMarks(IN givenMarks DECIMAL(5,2))
+BEGIN
+    SELECT * FROM Student
+    WHERE Marks > givenMarks;
+END $$
+
+-- Q7. Total Number of Students
+CREATE PROCEDURE TotalStudents()
+BEGIN
+    SELECT COUNT(*) AS TotalStudents
+    FROM Student;
+END $$
+
+-- Q8. Check Student Result
+CREATE PROCEDURE CheckResult(IN sid INT)
+BEGIN
+    SELECT StudentName, Marks,
+        IF(Marks >= 50, 'Pass', 'Fail') AS Result
+    FROM Student
+    WHERE StudentID = sid;
+END $$
+
+-- Q9. Students by Gender
+CREATE PROCEDURE GetStudentsByGender(IN studentGender VARCHAR(10))
+BEGIN
+    SELECT * FROM Student
+    WHERE Gender = studentGender;
+END $$
+
+-- Q10. Students Within Marks Range
+CREATE PROCEDURE StudentsBetweenMarks(
+    IN minMarks DECIMAL(5,2),
+    IN maxMarks DECIMAL(5,2)
+)
+BEGIN
+    SELECT * FROM Student
+    WHERE Marks BETWEEN minMarks AND maxMarks;
+END $$
+
+DELIMITER ;
+
+-- =====================================
+-- TEST STORED PROCEDURES
+-- =====================================
+
+CALL ShowStudents();
+CALL ShowDepartments();
+CALL ShowCourses();
+CALL GetStudent(3);
+CALL GetStudentsByDept(102);
+CALL StudentsAboveMarks(80);
+CALL TotalStudents();
+CALL CheckResult(3);
+CALL GetStudentsByGender('Female');
+CALL StudentsBetweenMarks(70, 90);
+
+-- =====================================
+-- FUNCTIONS: Q11 TO Q20
+-- =====================================
+
+DELIMITER $$
+
+-- Q11. Add Two Numbers
+CREATE FUNCTION AddTwoNumbers(a INT, b INT)
+RETURNS INT
+DETERMINISTIC
+NO SQL
+BEGIN
+    RETURN a + b;
+END $$
+
+-- Q12. Find Square
+CREATE FUNCTION FindSquare(n INT)
+RETURNS INT
+DETERMINISTIC
+NO SQL
+BEGIN
+    RETURN n * n;
+END $$
+
+-- Q13. Check Pass or Fail
+CREATE FUNCTION ResultStatus(m DECIMAL(5,2))
+RETURNS VARCHAR(10)
+DETERMINISTIC
+NO SQL
+BEGIN
+    IF m >= 50 THEN
+        RETURN 'Pass';
+    ELSE
+        RETURN 'Fail';
+    END IF;
+END $$
+
+-- Q14. Find Student Grade
+CREATE FUNCTION StudentGrade(m DECIMAL(5,2))
+RETURNS VARCHAR(2)
+DETERMINISTIC
+NO SQL
+BEGIN
+    IF m >= 90 THEN
+        RETURN 'A';
+    ELSEIF m >= 75 THEN
+        RETURN 'B';
+    ELSEIF m >= 60 THEN
+        RETURN 'C';
+    ELSE
+        RETURN 'D';
+    END IF;
+END $$
+
+-- Q15. Find Age Category
+CREATE FUNCTION AgeCategory(a INT)
+RETURNS VARCHAR(10)
+DETERMINISTIC
+NO SQL
+BEGIN
+    IF a >= 18 THEN
+        RETURN 'Adult';
+    ELSE
+        RETURN 'Minor';
+    END IF;
+END $$
+
+-- Q16. Calculate Bonus
+CREATE FUNCTION CalculateBonus(m DECIMAL(5,2))
+RETURNS INT
+DETERMINISTIC
+NO SQL
+BEGIN
+    IF m >= 90 THEN
+        RETURN 1000;
+    ELSEIF m >= 75 THEN
+        RETURN 500;
+    ELSE
+        RETURN 200;
+    END IF;
+END $$
+
+-- Q17. Find Higher Number
+CREATE FUNCTION HigherNumber(a INT, b INT)
+RETURNS INT
+DETERMINISTIC
+NO SQL
+BEGIN
+    IF a > b THEN
+        RETURN a;
+    ELSE
+        RETURN b;
+    END IF;
+END $$
+
+-- Q18. Calculate Double Marks
+CREATE FUNCTION DoubleMarks(m DECIMAL(5,2))
+RETURNS DECIMAL(7,2)
+DETERMINISTIC
+NO SQL
+BEGIN
+    RETURN m * 2;
+END $$
+
+-- Q19. Age After Five Years
+CREATE FUNCTION AgeAfterFiveYears(a INT)
+RETURNS INT
+DETERMINISTIC
+NO SQL
+BEGIN
+    RETURN a + 5;
+END $$
+
+DELIMITER ;
+
+
+
+SELECT AgeCategory(20) AS AgeCategory;

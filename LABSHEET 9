@@ -1,0 +1,451 @@
+```python
+from flask import Flask, request, redirect, url_for, flash, render_template_string
+from pymongo import MongoClient
+from pymongo.errors import PyMongoError
+
+app = Flask(__name__)
+app.secret_key = "mca105p_secret"
+
+# MongoDB Connection
+client = MongoClient(
+    "mongodb://localhost:27017/",
+    serverSelectionTimeoutMS=3000
+)
+
+db = client["CollegeDB"]
+students = db["students"]
+
+# HTML and CSS in the same Python file
+PAGE = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Student Record Management System</title>
+    <style>
+        body {
+            font-family: Arial;
+            background: #f1f5f9;
+            margin: 0;
+            color: #1e293b;
+        }
+        header {
+            background: #172554;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        nav {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        nav a {
+            color: white;
+            text-decoration: none;
+        }
+        main {
+            max-width: 1000px;
+            margin: 25px auto;
+            padding: 25px;
+            background: white;
+            border-radius: 12px;
+        }
+        input, select {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin: 8px 0 15px;
+            box-sizing: border-box;
+        }
+        button {
+            background: #2563eb;
+            color: white;
+            padding: 10px 18px;
+            border: 0;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #cbd5e1;
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background: #dbeafe;
+        }
+        .message {
+            background: #dcfce7;
+            padding: 10px;
+        }
+        .box {
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h2>Student Record Management System</h2>
+    <nav>
+        <a href="/">Home</a>
+        <a href="/add">Add Student</a>
+        <a href="/students">View Students</a>
+        <a href="/search">Search</a>
+        <a href="/update">Update</a>
+        <a href="/delete">Delete</a>
+        <a href="/filter">Filter</a>
+    </nav>
+</header>
+
+<main>
+    {% with messages = get_flashed_messages() %}
+        {% for message in messages %}
+            <p class="message">{{ message }}</p>
+        {% endfor %}
+    {% endwith %}
+
+    {% if page == 'home' %}
+        <h1>Welcome</h1>
+        <p>MongoDB Status:
+        <b>{{ 'Connected' if connected else 'Not Connected' }}</b></p>
+        <h3>Total Students: {{ count }}</h3>
+        <p>This application uses Python Flask, PyMongo and MongoDB.</p>
+
+    {% elif page == 'add' %}
+        <h1>Add Student</h1>
+        <form method="POST">
+            Student ID
+            <input name="student_id" required>
+            Student Name
+            <input name="name" required>
+            Age
+            <input type="number" name="age" min="1" required>
+            Gender
+            <select name="gender" required>
+                <option value="">Select Gender</option>
+                <option>Male</option>
+                <option>Female</option>
+                <option>Other</option>
+            </select>
+            Department
+            <input name="department" required>
+            Marks
+            <input type="number" name="marks"
+                   min="0" max="100" step="0.01" required>
+            <button type="submit">Add Student</button>
+        </form>
+
+    {% elif page == 'students' or page == 'filter' %}
+        <h1>{{ heading }}</h1>
+
+        {% if page == 'filter' %}
+        <form method="POST">
+            Filter
+            <select name="kind" id="kind" onchange="toggleDepartment()">
+                <option value="department">By Department</option>
+                <option value="above75">Marks Greater Than 75</option>
+                <option value="between">Marks Between 50 and 80</option>
+                <option value="age20">Age Greater Than 20</option>
+            </select>
+            <div id="department-box">
+                Department
+                <input name="department" placeholder="MCA">
+            </div>
+            <button>Apply Filter</button>
+        </form>
+        <script>
+        function toggleDepartment() {
+            document.getElementById('department-box').style.display =
+                document.getElementById('kind').value === 'department'
+                ? 'block' : 'none';
+        }
+        toggleDepartment();
+        </script>
+        {% endif %}
+
+        {% if records %}
+        <table>
+            <tr>
+                <th>Student ID</th><th>Name</th><th>Age</th>
+                <th>Gender</th><th>Department</th><th>Marks</th>
+            </tr>
+            {% for s in records %}
+            <tr>
+                <td>{{ s.student_id }}</td>
+                <td>{{ s.name }}</td>
+                <td>{{ s.age }}</td>
+                <td>{{ s.gender }}</td>
+                <td>{{ s.department }}</td>
+                <td>{{ s.marks }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+        {% else %}
+        <p>No student records found.</p>
+        {% endif %}
+
+    {% elif page == 'search' %}
+        <h1>Search Student</h1>
+        <form method="POST">
+            Student ID
+            <input name="student_id" required>
+            <button>Search</button>
+        </form>
+
+        {% if searched %}
+            {% if student %}
+                <h3>Student Details</h3>
+                <p>Student ID: {{ student.student_id }}</p>
+                <p>Name: {{ student.name }}</p>
+                <p>Age: {{ student.age }}</p>
+                <p>Gender: {{ student.gender }}</p>
+                <p>Department: {{ student.department }}</p>
+                <p>Marks: {{ student.marks }}</p>
+            {% else %}
+                <p>Student not found.</p>
+            {% endif %}
+        {% endif %}
+
+    {% elif page == 'update' %}
+        <h1>Update Student</h1>
+        <form method="POST">
+            Student ID
+            <input name="student_id"
+                   value="{{ student.student_id if student else '' }}"
+                   required>
+            {% if not student %}
+                <button name="mode" value="find">Find Student</button>
+            {% else %}
+                <input type="hidden" name="mode" value="save">
+                Name
+                <input name="name" value="{{ student.name }}" required>
+                Age
+                <input type="number" name="age"
+                       value="{{ student.age }}" min="1" required>
+                Department
+                <input name="department"
+                       value="{{ student.department }}" required>
+                Marks
+                <input type="number" name="marks"
+                       value="{{ student.marks }}"
+                       min="0" max="100" step="0.01" required>
+                <button>Save Changes</button>
+            {% endif %}
+        </form>
+
+    {% elif page == 'delete' %}
+        <h1>Delete Student</h1>
+        <form method="POST"
+              onsubmit="return confirm('Delete this student?')">
+            Student ID
+            <input name="student_id" required>
+            <button>Delete Student</button>
+        </form>
+    {% endif %}
+</main>
+</body>
+</html>
+"""
+
+
+def show(page, **kwargs):
+    return render_template_string(PAGE, page=page, **kwargs)
+
+
+@app.route("/")
+def home():
+    try:
+        client.admin.command("ping")
+        connected = True
+        count = students.count_documents({})
+    except PyMongoError:
+        connected = False
+        count = 0
+
+    return show("home", connected=connected, count=count)
+
+
+@app.route("/add", methods=["GET", "POST"])
+def add():
+    if request.method == "POST":
+        try:
+            sid = request.form["student_id"].strip()
+
+            if students.find_one({"student_id": sid}):
+                flash("Student ID already exists!")
+                return redirect(url_for("add"))
+
+            student = {
+                "student_id": sid,
+                "name": request.form["name"].strip(),
+                "age": int(request.form["age"]),
+                "gender": request.form["gender"],
+                "department": request.form["department"].strip(),
+                "marks": float(request.form["marks"])
+            }
+
+            if student["age"] <= 0 or not 0 <= student["marks"] <= 100:
+                flash("Enter valid age and marks between 0 and 100.")
+                return redirect(url_for("add"))
+
+            students.insert_one(student)
+            flash("Student added successfully!")
+            return redirect(url_for("view_students"))
+
+        except ValueError:
+            flash("Age and Marks must be numbers.")
+        except PyMongoError:
+            flash("MongoDB connection error.")
+
+    return show("add")
+
+
+@app.route("/students")
+def view_students():
+    try:
+        records = list(students.find().sort("student_id", 1))
+    except PyMongoError:
+        records = []
+
+    return show(
+        "students",
+        records=records,
+        heading="All Student Records"
+    )
+
+
+@app.route("/search", methods=["GET", "POST"])
+def search():
+    student = None
+    searched = False
+
+    if request.method == "POST":
+        searched = True
+        try:
+            student = students.find_one({
+                "student_id": request.form["student_id"].strip()
+            })
+        except PyMongoError:
+            flash("MongoDB connection error.")
+
+    return show("search", student=student, searched=searched)
+
+
+@app.route("/update", methods=["GET", "POST"])
+def update():
+    student = None
+
+    if request.method == "POST":
+        sid = request.form["student_id"].strip()
+
+        try:
+            if request.form.get("mode") == "save":
+                data = {
+                    "name": request.form["name"].strip(),
+                    "age": int(request.form["age"]),
+                    "department": request.form["department"].strip(),
+                    "marks": float(request.form["marks"])
+                }
+
+                if data["age"] <= 0 or not 0 <= data["marks"] <= 100:
+                    flash("Enter valid age and marks.")
+                    student = students.find_one({"student_id": sid})
+                else:
+                    result = students.update_one(
+                        {"student_id": sid},
+                        {"$set": data}
+                    )
+
+                    flash(
+                        "Student updated successfully!"
+                        if result.matched_count
+                        else "Student not found."
+                    )
+
+                    return redirect(url_for("view_students"))
+
+            else:
+                student = students.find_one({"student_id": sid})
+
+                if student is None:
+                    flash("Student not found!")
+
+        except (ValueError, PyMongoError):
+            flash("Invalid data or MongoDB error.")
+
+    return show("update", student=student)
+
+
+@app.route("/delete", methods=["GET", "POST"])
+def delete():
+    if request.method == "POST":
+        try:
+            result = students.delete_one({
+                "student_id": request.form["student_id"].strip()
+            })
+
+            flash(
+                "Student deleted successfully!"
+                if result.deleted_count
+                else "Student not found!"
+            )
+
+        except PyMongoError:
+            flash("MongoDB connection error.")
+
+        return redirect(url_for("delete"))
+
+    return show("delete")
+
+
+@app.route("/filter", methods=["GET", "POST"])
+def filter_students():
+    records = []
+    heading = "Filter Student Records"
+
+    if request.method == "POST":
+        kind = request.form["kind"]
+
+        if kind == "department":
+            department = request.form.get("department", "").strip()
+            query = {
+                "department": {
+                    "$regex": "^" + department + "$",
+                    "$options": "i"
+                }
+            }
+            heading = "Students by Department"
+
+        elif kind == "above75":
+            query = {"marks": {"$gt": 75}}
+            heading = "Marks Greater Than 75"
+
+        elif kind == "between":
+            query = {"marks": {"$gte": 50, "$lte": 80}}
+            heading = "Marks Between 50 and 80"
+
+        else:
+            query = {"age": {"$gt": 20}}
+            heading = "Students Older Than 20"
+
+        try:
+            records = list(students.find(query))
+        except PyMongoError:
+            flash("MongoDB connection error.")
+
+    return show(
+        "filter",
+        records=records,
+        heading=heading
+    )
+
+
+if __name__ == "__main__":
+    app.run(debug=True)
+```
